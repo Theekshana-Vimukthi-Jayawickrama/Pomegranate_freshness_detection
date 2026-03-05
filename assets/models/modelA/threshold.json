@@ -1,0 +1,7 @@
+{
+  "threshold": 0.0016576222842559218,
+  "f1_threshold": 0.4564255177974701,
+  "input_size": 224,
+  "model": "MobileNetV2",
+  "date": "2026-01-26"
+}

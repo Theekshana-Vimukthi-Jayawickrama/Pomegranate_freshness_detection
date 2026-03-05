@@ -1,0 +1,545 @@
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../ai/pipeline_predictor.dart';
+import '../ai/gemini_client.dart';
+import '../ai/pomegranate_assistant.dart';
+import '../ui/pomegranate_chat_panel.dart';
+
+class PipelineTestPage extends StatefulWidget {
+  const PipelineTestPage({super.key});
+
+  @override
+  State<PipelineTestPage> createState() => _PipelineTestPageState();
+}
+
+class _PipelineTestPageState extends State<PipelineTestPage>
+    with SingleTickerProviderStateMixin {
+  final picker = ImagePicker();
+  final pipeline = PomegranatePipeline();
+
+  Uint8List? imageBytes;
+  PipelineResult? result;
+
+  bool loading = true;
+  String status = "Loading models...";
+
+  late final GeminiClient gemini;
+  late final PomegranateAssistant assistant;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  // Pomegranate color scheme
+  static const pomegranateRed = Color(0xFFC73E1D);
+  static const pomegranateDeep = Color(0xFF8B2635);
+  static const pomegranatePink = Color(0xFFE8959C);
+  static const pomegranateLight = Color(0xFFFFF5F5);
+  static const pomegranateSeed = Color(0xFFB8434D);
+  static const pomegranateGreen = Color(0xFF4A7C59);
+
+  @override
+  void initState() {
+    super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+
+    const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+    gemini = GeminiClient(apiKey: apiKey, modelName: "gemini-2.5-flash");
+    assistant = PomegranateAssistant(gemini: gemini);
+
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      await pipeline.load();
+      setState(() {
+        loading = false;
+        status = "✅ Ready. Pick an image.";
+      });
+      _animationController.forward();
+    } catch (e, st) {
+      // Surface load error to the user and stop the loading state.
+      // Include stack trace in logs and truncate for UI display.
+      // ignore: avoid_print
+      print('Pipeline init failed: $e\n$st');
+
+      final msg = e?.toString() ?? 'Unknown error';
+      final trace = st?.toString() ?? '';
+      final short = trace.split('\n').take(3).join(' | ');
+
+      setState(() {
+        loading = false;
+        status = "❌ Failed to load models: $msg";
+      });
+
+      // Also show a snackbar if scaffold is available
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final s = ScaffoldMessenger.of(context);
+          s.showSnackBar(SnackBar(content: Text('Model load error: $msg')));
+        }
+      });
+    }
+  }
+
+  // ✅ NEW: One function for BOTH camera + gallery
+  Future<void> pickAndRun(ImageSource source) async {
+    final x = await picker.pickImage(
+      source: source,
+      imageQuality: 100,
+      preferredCameraDevice: CameraDevice.rear,
+    );
+    if (x == null) return;
+
+    final b = await x.readAsBytes();
+
+    setState(() {
+      imageBytes = b;
+      result = null;
+      status = "Running pipeline...";
+      loading = true;
+    });
+
+    _animationController.reset();
+
+    final r = await pipeline.run(b);
+
+    setState(() {
+      result = r;
+      status = r.message;
+      loading = false;
+    });
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    pipeline.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = result;
+
+    return Scaffold(
+      backgroundColor: pomegranateLight,
+      appBar: AppBar(
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [pomegranateRed, pomegranateSeed],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.agriculture, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              "Pomegranate Detection",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // Status Banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: loading
+                    ? [Colors.orange, Colors.deepOrange]
+                    : [pomegranateGreen, const Color(0xFF3A6B4A)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: (loading ? Colors.orange : pomegranateGreen).withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                if (loading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                else
+                  const Icon(Icons.check_circle, color: Colors.white, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    status,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // ✅ NEW: Two buttons (Camera + Gallery)
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _actionButton(
+                            icon: Icons.photo_camera,
+                            title: "Camera",
+                            subtitle: "Take photo & analyze",
+                            onTap: loading ? null : () => pickAndRun(ImageSource.camera),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _actionButton(
+                            icon: Icons.photo_library,
+                            title: "Gallery",
+                            subtitle: "Pick image & analyze",
+                            onTap: loading ? null : () => pickAndRun(ImageSource.gallery),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  if (loading)
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: pomegranateRed.withOpacity(0.1),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 4,
+                              valueColor: const AlwaysStoppedAnimation<Color>(pomegranateRed),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            "Analyzing pomegranate...",
+                            style: TextStyle(
+                              color: pomegranateDeep,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          LinearProgressIndicator(
+                            backgroundColor: pomegranatePink.withOpacity(0.2),
+                            valueColor: const AlwaysStoppedAnimation<Color>(pomegranateRed),
+                            minHeight: 4,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: 20),
+
+                  if (imageBytes != null)
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: pomegranateRed.withOpacity(0.2),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Stack(
+                            children: [
+                              Image.memory(
+                                imageBytes!,
+                                height: 280,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                              Positioned(
+                                top: 12,
+                                right: 12,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.6),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Icon(Icons.image, color: Colors.white, size: 16),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        "Selected Image",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 24),
+
+                  if (r != null)
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Column(
+                        children: [
+                          if (r.f != null)
+                            _buildResultCard(
+                              icon: Icons.eco,
+                              title: "Freshness Check",
+                              value: r.f!.label == "fresh" ? "🌿 Fresh" : "🍂 Not Fresh",
+                              subtitle:
+                              "Fresh: ${r.f!.freshProb.toStringAsFixed(4)} | Non-fresh: ${r.f!.nonFreshProb.toStringAsFixed(4)}",
+                              gradient: r.f!.label == "fresh"
+                                  ? [const Color(0xFF43A047), const Color(0xFF2E7D32)]
+                                  : [const Color(0xFFE65100), const Color(0xFFBF360C)],
+                            ),
+
+                          const SizedBox(height: 16),
+
+                          PomegranateChatPanel(
+                            pipelineResult: r,
+                            assistant: assistant,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ NEW: reusable action button
+  Widget _actionButton({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback? onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [pomegranateRed, pomegranateSeed],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: pomegranateRed.withOpacity(0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, size: 34, color: Colors.white),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    String? subtitle,
+    required List<Color> gradient,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: gradient[0].withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: gradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        value,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "threshold": 0.9858322143554688,
+  "input_size": 224,
+  "preprocess": "x/127.5 - 1 (RGB) 224x224 center-crop",
+  "model_name": "pomegranate_verifier_mnv3_224",
+  "created": "2026-01-25"
+}

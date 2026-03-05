@@ -1,0 +1,2 @@
+0: not_pomegranate
+1: pomegranate
