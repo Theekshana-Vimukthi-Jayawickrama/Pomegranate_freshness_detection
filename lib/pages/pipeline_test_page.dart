@@ -1,11 +1,16 @@
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../ai/pipeline_predictor.dart';
 import '../ai/gemini_client.dart';
 import '../ai/pomegranate_assistant.dart';
 import '../ui/pomegranate_chat_panel.dart';
+import 'about_us_screen.dart';
+import 'contact_us_screen.dart';
+import 'privacy_policy_screen.dart';
 
 class PipelineTestPage extends StatefulWidget {
   const PipelineTestPage({super.key});
@@ -92,8 +97,93 @@ class _PipelineTestPageState extends State<PipelineTestPage>
     }
   }
 
+  // ✅ Request permission based on source
+  Future<bool> _requestPermission(ImageSource source) async {
+    late Permission permission;
+    String permissionType = '';
+    
+    if (source == ImageSource.camera) {
+      permission = Permission.camera;
+      permissionType = 'Camera';
+    } else {
+      permission = Permission.storage;
+      permissionType = 'Photo Library';
+    }
+
+    // ignore: avoid_print
+    print('Requesting $permissionType permission');
+
+    // Request permission
+    final status = await permission.request();
+    
+    // ignore: avoid_print
+    print('$permissionType permission status: $status');
+
+    if (status.isGranted) {
+      // ignore: avoid_print
+      print('$permissionType permission granted');
+      return true;
+    }
+
+    if (status.isDenied) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$permissionType permission is required'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      // ignore: avoid_print
+      print('$permissionType permission denied');
+      return false;
+    }
+
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        _showPermissionDialog(source, permissionType);
+      }
+      // ignore: avoid_print
+      print('$permissionType permission permanently denied');
+      return false;
+    }
+
+    return false;
+  }
+
+  // ✅ Show dialog for permanent permission denial
+  void _showPermissionDialog(ImageSource source, String permissionType) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Permission Required'),
+        content: Text(
+          '$permissionType permission is permanently denied. Please enable it in app settings to use this feature.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              openAppSettings();
+              Navigator.pop(context);
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ✅ NEW: One function for BOTH camera + gallery
   Future<void> pickAndRun(ImageSource source) async {
+    // Request permission first
+    final hasPermission = await _requestPermission(source);
+    if (!hasPermission) return;
+
     final x = await picker.pickImage(
       source: source,
       imageQuality: 100,
@@ -165,6 +255,59 @@ class _PipelineTestPageState extends State<PipelineTestPage>
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
+            ),
+          ],
+        ),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: const Color(0xFFC73E1D),
+              ),
+              child: const Text(
+                'Menu',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.info),
+              title: const Text('About Us'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AboutUsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.email),
+              title: const Text('Contact Us'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ContactUsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip),
+              title: const Text('Privacy Policy'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+                );
+              },
             ),
           ],
         ),

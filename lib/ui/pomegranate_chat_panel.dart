@@ -629,10 +629,10 @@ class _PomegranateChatPanelState extends State<PomegranateChatPanel> {
                         Expanded(
                           child: Text(
                             selectedLang?.code == "si"
-                                ? "Chat ලබාගැනීමට පෙර ✅ දෙළුම් + ✅ ලඟ + ✅ freshness ප්‍රතිඵල ලැබිය යුතුයි."
+                                ? "Chat ලබාගැනීමට පෙර දෙළුම් + ලඟ + freshness ප්‍රතිඵල ලැබිය යුතුයි."
                                 : (selectedLang?.code == "sg")
-                                ? "Chat unlock wenne ✅ delum + ✅ close + ✅ freshness result awama witharai."
-                                : "Chat unlocks only after ✅ pomegranate + ✅ close + ✅ freshness result.",
+                                ? "Chat unlock wenne delum +  close + freshness result awama witharai."
+                                : "Chat unlocks only after pomegranate + close + freshness result.",
                             style: TextStyle(
                               color: Colors.orange.shade800,
                               fontWeight: FontWeight.w500,
