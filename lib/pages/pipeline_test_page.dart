@@ -249,12 +249,21 @@ class _PipelineTestPageState extends State<PipelineTestPage>
             ),
             const SizedBox(width: 12),
             const Text(
-              "Pomegranate Detection",
+              "PomeScan",
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.agriculture, color: Colors.white, size: 24),
             ),
           ],
         ),
