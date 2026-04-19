@@ -1,4 +1,4 @@
-package com.example.pomegrnate_freshness_detection
+package com.pomegrnatefreshnessdetection.pomescan
 
 import io.flutter.embedding.android.FlutterActivity
 
