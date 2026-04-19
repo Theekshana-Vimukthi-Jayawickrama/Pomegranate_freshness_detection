@@ -82,7 +82,8 @@ def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "
 
 android {
     namespace = "com.pomegrnatefreshnessdetection.pomescan"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
+    buildToolsVersion "35.0.0"
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -93,7 +94,7 @@ android {
     defaultConfig {
         applicationId = "com.pomegrnatefreshnessdetection.pomescan"
         minSdkVersion 26
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }
