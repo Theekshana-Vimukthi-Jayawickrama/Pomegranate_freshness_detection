@@ -402,8 +402,24 @@ class _PipelineTestPageState extends State<PipelineTestPage>
                     ),
                   ),
 
+                  const SizedBox(height: 300.0),
+                    AnimatedOpacity(
+                      opacity: 1.0,
+                      duration: Duration(seconds: 2),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Text(
+                          'Tip: Use clear close-up images of the full pomegranate. Try taking or uploading images from different angles and sides after rotating the pomegranate, so you can get a more reliable overall result for that pomegranate. Avoid partial images for better accuracy.',
+                          textAlign: TextAlign.justify,
+                          style: TextStyle(
+                            fontSize: 15.0,
+                            color: Colors.black54,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 20),
-
                   if (loading)
                     Container(
                       padding: const EdgeInsets.all(24),
@@ -684,6 +700,148 @@ class _PipelineTestPageState extends State<PipelineTestPage>
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+class AnimatedUsageTip extends StatefulWidget {
+  const AnimatedUsageTip({super.key});
+
+  @override
+  State<AnimatedUsageTip> createState() => _AnimatedUsageTipState();
+}
+
+class _AnimatedUsageTipState extends State<AnimatedUsageTip>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: const Offset(0, 0),
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _scaleAnimation = Tween<double>(
+      begin: 0.98,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const pomegranateRed = Color(0xFFC73E1D);
+    const pomegranateLight = Color(0xFFFFF5F5);
+    const pomegranateSeed = Color(0xFFB8434D);
+
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  pomegranateLight,
+                  Colors.white,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: pomegranateRed.withOpacity(0.18),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: pomegranateSeed.withOpacity(0.10),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: pomegranateRed.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.tips_and_updates_rounded,
+                    color: pomegranateRed,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Usage Tip',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: pomegranateRed,
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Use clear close-up images of the full pomegranate. Try taking or uploading images from different angles and sides after rotating the pomegranate, so you can get a more reliable overall result for that pomegranate. Avoid partial images for better accuracy.',
+                        textAlign: TextAlign.justify,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          color: Colors.black87,
+                          height: 1.4,
+                        ),
+                      ),
                     ],
                   ),
                 ),
